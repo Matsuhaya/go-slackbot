@@ -1,25 +1,50 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"context"
+	"encoding/base64"
+	slack "myproject/go-slackbot/slack"
+	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kms"
 )
 
-type myEvent struct {
-	Name string `json:"What is your name?"`
+var functionName string = os.Getenv("AWS_LAMBDA_FUNCTION_NAME")
+var encrypted string = os.Getenv("slackURL")
+var decrypted string
+
+func init() {
+	kmsClient := kms.New(session.New())
+	decodedBytes, err := base64.StdEncoding.DecodeString(encrypted)
+	if err != nil {
+		panic(err)
+	}
+	input := &kms.DecryptInput{
+		CiphertextBlob: decodedBytes,
+		EncryptionContext: aws.StringMap(map[string]string{
+			"LambdaFunctionName": functionName,
+		}),
+	}
+	response, err := kmsClient.Decrypt(input)
+	if err != nil {
+		panic(err)
+	}
+
+	decrypted = string(response.Plaintext[:])
 }
 
-type myResponse struct {
-	Message string `json:"Answer:"`
-}
+func handleRequest(ctx context.Context) (string, error) {
+	var slackURL = decrypted
+	var slackChannel = os.Getenv("slackChannel")
 
-func hello(event myEvent) (myResponse, error) {
-	log.Println("Hello in log")
-	return myResponse{Message: fmt.Sprintf("Hello %s!!", event.Name)}, nil
+	sl := slack.NewSlack(slackURL, "This is a test", "test_imp", ":smiling_imp:", "", slackChannel)
+	sl.Send()
+	return "", nil
 }
 
 func main() {
-	lambda.Start(hello)
+	lambda.Start(handleRequest)
 }

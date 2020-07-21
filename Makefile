@@ -3,11 +3,11 @@
 package: clean build zip
 
 build:
-	env GOOS=linux GOARCH=amd64 go build -o hello ./main.go 
+	env GOOS=linux GOARCH=amd64 go build -o handleRequest ./main.go 
 
 zip:
-	zip hello.zip hello
+	zip handleRequest.zip handleRequest
 
 clean:
-	rm -f hello
+	rm -f handleRequest
 	rm -f *.zip
